@@ -3,8 +3,6 @@
 
 #include <Arduino.h>
 
-#define WIRE Wire
-
 typedef enum 
 { 
 	dg_x1 = 0x00, 
@@ -29,14 +27,14 @@ typedef enum
 } int_time_t;
 
 class VEMLClass {
-  private:
+    private:
     /**
      * @brief Constructor is hidden to enforce a single instance of this class
      * through a singleton.
      */
     VEMLClass(){};
 
-  public:
+    public:
     /* Singleton instance */
     static VEMLClass &instance(void) {
         static VEMLClass instance;
@@ -152,32 +150,13 @@ class VEMLClass {
 	 */
 	uint8_t setSensitivity(bool high_low_sens);
 
-
 	/**
 	 * @brief Set integration time of device
 	 * 
 	 * @param time Integration time enum member
 	 * @return int 0 if successful, 1 if failed
 	 */
-	uint8_t setIntTime(int_time_t time);
-
-	////// Read/write procedures //////
-	/**
-	 * @brief 16-bit write procedure
-	 *
-	 * @param reg_ptr Register pointer
-	 * @param data 16-bit data
-	 */
-	void regWrite(uint8_t reg_ptr, uint16_t data);
-
-	/**
-	 * @brief 16-bit read procedure
-	 *
-	 * @param reg_ptr Register pointer
-	 * @return uint16_t Returned data
-	 */
-	uint16_t regRead(uint8_t reg_ptr);
-
+    uint8_t setIntTime(int_time_t time);
 };
     extern VEMLClass Veml3328;
 
