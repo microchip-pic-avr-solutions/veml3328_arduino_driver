@@ -13,5 +13,3 @@ rbWakeup KEYWORD2
 setDG KEYWORD2
 setGain KEYWORD2
 setSensitivity KEYWORD2
-regWrite KEYWORD2
-regRead KEYWORD2
