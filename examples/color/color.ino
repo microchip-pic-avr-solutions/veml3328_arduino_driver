@@ -22,12 +22,6 @@ void setup(void) {
     // if (err < 0) {
     //     SerialDebug.println("Error: could not start VEML3328 library with custom address");
     // }
-    
-    /* Wake up device */
-    err = Veml3328.wake();
-    if (err) {
-        SerialDebug.println("Error: could not wake up the sensor");
-    }
 }
 
 void loop() {
