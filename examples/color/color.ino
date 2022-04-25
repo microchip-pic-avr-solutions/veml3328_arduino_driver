@@ -4,6 +4,9 @@
 uint8_t err = 0;
 int16_t red, green, blue, ir, clear = 0;
 
+/* Forward function definiton */
+void sleep_wake();
+    
 void setup(void) {
     /* Initialize serial interface */
     SerialDebug.begin(115200);
@@ -40,6 +43,12 @@ void loop() {
     SerialDebug.printf("IR: %d\n", ir);
     SerialDebug.printf("Clear: %d\n\n", clear);
     
+    sleep_wake();
+
+    delay(1000);
+}
+
+void sleep_wake() {
     /* Shutdown Red and Blue channels */
     SerialDebug.printf("\nShutting down R/B channels\n");
     err = Veml3328.rbShutdown();
@@ -67,6 +76,4 @@ void loop() {
     if (err) {
         SerialDebug.println("Error: could not wake up R/B channels");
     }
-
-    delay(1000);
 }
