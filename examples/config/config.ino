@@ -24,13 +24,25 @@ void loop() {
 
     /* Set device DG value */
     err = Veml3328.setDG(dg_x2);
+    if (err) {
+        SerialDebug.println("Error: unable to set DG value");
+    }
 
     /* Set device gain */
     err = Veml3328.setGain(gain_x2);
+    if (err) {
+        SerialDebug.println("Error: unable to set device gain");
+    }
 
     /* Set device sensitivity */
     err = Veml3328.setSensitivity(true);
+    if (err) {
+        SerialDebug.println("Error: unable to set device sensitivity");
+    }
 
     /* Set device integration time */
     err = Veml3328.setIntTime(time_400);
+    if (err) {
+        SerialDebug.println("Error: unable to set device integration time");
+    }
 }
