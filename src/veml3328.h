@@ -66,7 +66,6 @@ class VEMLClass {
     /**
      * @brief Shutdown VEML3328 (low power mode)
      *
-     * @return int 0 if successful, 1 if failed
      */
     void shutdown(void);
 

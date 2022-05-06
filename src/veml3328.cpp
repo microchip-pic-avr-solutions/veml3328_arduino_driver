@@ -36,7 +36,7 @@ static uint8_t initalize(void) {
 	}
 	
 	/* Wake up device */
-	return 0;
+	return Veml3328.wake();
 }
 
 uint8_t VEMLClass::begin(void) {
