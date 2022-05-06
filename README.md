@@ -122,9 +122,8 @@ These values are returned as a 16-bit integer (*int16_t*).
 /**
  * @brief Shutdown VEML3328 (low power mode)
  *
- * @return int 0 if successful, 1 if failed
  */
-uint8_t shutdown(void);
+void shutdown(void);
 ```
 
 This command sets the device in a low-power (shutdown) mode.

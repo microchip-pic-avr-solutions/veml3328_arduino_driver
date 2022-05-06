@@ -66,9 +66,8 @@ class VEMLClass {
     /**
      * @brief Shutdown VEML3328 (low power mode)
      *
-     * @return int 0 if successful, 1 if failed
      */
-    uint8_t shutdown(void);
+    void shutdown(void);
 
     /**
      * @brief Get RED channel value

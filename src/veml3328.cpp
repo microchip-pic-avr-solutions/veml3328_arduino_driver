@@ -28,7 +28,7 @@ static uint8_t initalize(void) {
 	WIRE.swap(2);
 	WIRE.begin();
 
-	if (regRead(POINTER_CONFIG) != ((1 << 15) & (1 << 0))) {
+	if (regRead(POINTER_CONFIG) != (uint16_t) ((1 << 15) | (1 << 0))) {
 #ifdef DEBUG
 		SerialDebug.println("Error: sensor config not at standard value");
 #endif
@@ -64,20 +64,9 @@ uint8_t VEMLClass::wake(void) {
 	return 0;
 }
 
-uint8_t VEMLClass::shutdown(void) {
+void VEMLClass::shutdown(void) {
 	/* Set shutdown bits SD1/SD0 */
-	regWrite(POINTER_CONFIG, ((1 << 15) & (1 << 0)));
-
-	/* Check shutdown bits */
-	uint16_t reg = regRead(POINTER_CONFIG);
-	if (!((reg & (1 << 15)) && (reg & (1 << 0)))) {
-#ifdef DEBUG
-        SerialDebug.println("Error: shutdown bits not set");
-#endif
-		return 1;
-	}
-
-	return 0;
+	regWrite(POINTER_CONFIG, ((1 << 15) | (1 << 0)));
 }
 
 int16_t VEMLClass::getRed(void) {
