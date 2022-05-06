@@ -68,7 +68,7 @@ class VEMLClass {
      *
      * @return int 0 if successful, 1 if failed
      */
-    uint8_t shutdown(void);
+    void shutdown(void);
 
     /**
      * @brief Get RED channel value
