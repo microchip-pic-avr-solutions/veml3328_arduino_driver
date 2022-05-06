@@ -3,7 +3,7 @@
 
 #define WIRE        Wire
 #define SerialDebug Serial3 // Cellular Mini
-#define DEBUG
+//#define DEBUG
 
 #define I2C_ADDRESS_DEFAULT 0x10
 #define POINTER_CONFIG      0x00 // VEML3328 configuration register
