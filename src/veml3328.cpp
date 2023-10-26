@@ -1,228 +1,154 @@
 #include "veml3328.h"
-#include <Wire.h>
 
-#define WIRE        Wire
-#define SerialDebug Serial3 // Cellular Mini
-//#define DEBUG
+#define DEFAULT_ADDRESS (0x10)
 
-#define I2C_ADDRESS_DEFAULT 0x10
-#define POINTER_CONFIG      0x00 // VEML3328 configuration register
-#define POINTER_CLEAR       0x04 // Red channel pointer
-#define POINTER_RED         0x05 // Blue channel pointer
-#define POINTER_GREEN       0x06 // Green channel pointer
-#define POINTER_BLUE        0x07 // Blue channel pointer
-#define POINTER_IR          0x08 // Infrared (IR) channel pointer
-#define POINTER_DEVICE_ID   0x0C // Device ID = 0x28
+#define CONFIG_SHUTDOWN_bm          (0b1000000000000001)
+#define CONFIG_SHUTDOWN_RB_bm       (0b0100000000000000)
+#define CONFIG_DIFFERENTIAL_GAIN_bm (0b0011000000000000)
+#define CONFIG_DIFFERENTIAL_GAIN_bp (12)
+#define CONFIG_GAIN_bm              (0b0000110000000000)
+#define CONFIG_GAIN_bp              (10)
+#define CONFIG_SENSITIVITY_bm       (0b0000000001000000)
+#define CONFIG_SENSITIVITY_bp       (6)
+#define CONFIG_INTEGRATION_TIME_bm  (0b0000000000110000)
+#define CONFIG_INTEGRATION_TIME_bp  (4)
 
-/* Global variables */
-static uint8_t I2C_ADDRESS;
+#define CONFIG_REGISTER_ADDRESS    (0x00)
+#define CLEAR_REGISTER_ADDRESS     (0x04)
+#define RED_REGISTER_ADDRESS       (0x05)
+#define GREEN_REGISTER_ADDRESS     (0x06)
+#define BLUE_REGISTER_ADDRESS      (0x07)
+#define IR_REGISTER_ADDRESS        (0x08)
+#define DEVICE_ID_REGISTER_ADDRESS (0x0C)
 
-/* Forward function delcarations */
-void regWrite(uint8_t reg_ptr, uint16_t data);
-uint16_t regRead(uint8_t reg_ptr);
-
-/* Singleton instance. Used by rest of library */
 VEMLClass Veml3328 = VEMLClass::instance();
 
-static uint8_t initalize(void) {
-    WIRE.swap(2);
-    WIRE.begin();
+uint8_t VEMLClass::begin(const uint8_t address,
+                         TwoWire *wire_,
+                         const uint8_t pin_swap) {
+    this->wire = wire_;
+    this->device_address = address;
 
-    /* Wake up device */
-    return Veml3328.wake();
+    this->wire->swap(pin_swap);
+    this->wire->begin();
+
+    return wake();
 }
 
-uint8_t VEMLClass::begin(void) {
-    I2C_ADDRESS = I2C_ADDRESS_DEFAULT;
-    return initalize();
+uint8_t VEMLClass::begin(TwoWire *wire, const uint8_t pin_swap) {
+    return begin(DEFAULT_ADDRESS, wire, pin_swap);
 }
 
-uint8_t VEMLClass::begin(uint8_t address) {
-    I2C_ADDRESS = address;
-    return initalize();
+uint16_t VEMLClass::deviceID() {
+    return (read(DEVICE_ID_REGISTER_ADDRESS) & 0xFF);
 }
 
-uint8_t VEMLClass::wake(void) {
-    regWrite(POINTER_CONFIG,
-             ((0 << 15) & (0 << 0))); // Set shutdown bits SD1/SD0
+uint16_t VEMLClass::getRed() { return read(RED_REGISTER_ADDRESS); }
+uint16_t VEMLClass::getGreen() { return read(GREEN_REGISTER_ADDRESS); }
+uint16_t VEMLClass::getBlue() { return read(BLUE_REGISTER_ADDRESS); }
+uint16_t VEMLClass::getIR() { return read(IR_REGISTER_ADDRESS); }
+uint16_t VEMLClass::getClear() { return read(CLEAR_REGISTER_ADDRESS); }
 
-    /* Check shutdown bits */
-    uint16_t reg = regRead(POINTER_CONFIG);
-    if ((reg & (1 << 15)) && (reg & (1 << 0))) {
-#ifdef DEBUG
-        SerialDebug.println("Error: shutdown bits set");
-#endif
-        return 1;
+uint8_t VEMLClass::wake() {
+    return writeConfirm(CONFIG_REGISTER_ADDRESS, CONFIG_SHUTDOWN_bm, 0x0);
+}
+
+void VEMLClass::shutdown() {
+    write(CONFIG_REGISTER_ADDRESS, CONFIG_SHUTDOWN_bm, CONFIG_SHUTDOWN_bm);
+}
+
+uint8_t VEMLClass::rbShutdown() {
+    return writeConfirm(
+        CONFIG_REGISTER_ADDRESS, CONFIG_SHUTDOWN_RB_bm, CONFIG_SHUTDOWN_RB_bm);
+}
+
+uint8_t VEMLClass::rbWakeup() {
+    return writeConfirm(CONFIG_REGISTER_ADDRESS, CONFIG_SHUTDOWN_RB_bm, 0x0);
+}
+
+uint8_t VEMLClass::setDG(const DG_t differential_gain) {
+    return writeConfirm(CONFIG_REGISTER_ADDRESS,
+                        CONFIG_DIFFERENTIAL_GAIN_bm,
+                        differential_gain,
+                        CONFIG_DIFFERENTIAL_GAIN_bp);
+}
+
+uint8_t VEMLClass::setGain(const gain_t gain) {
+    return writeConfirm(
+        CONFIG_REGISTER_ADDRESS, CONFIG_GAIN_bm, gain, CONFIG_GAIN_bp);
+}
+
+uint8_t VEMLClass::setSensitivity(const bool sensitivity) {
+    return writeConfirm(CONFIG_REGISTER_ADDRESS,
+                        CONFIG_SENSITIVITY_bm,
+                        sensitivity ? 1 : 0,
+                        CONFIG_SENSITIVITY_bp);
+}
+
+uint8_t VEMLClass::setIntTime(const int_time_t integration_time) {
+    return writeConfirm(CONFIG_REGISTER_ADDRESS,
+                        CONFIG_INTEGRATION_TIME_bm,
+                        integration_time,
+                        CONFIG_INTEGRATION_TIME_bp);
+}
+
+uint16_t VEMLClass::read(const uint8_t register_address) {
+
+    if (wire == nullptr) {
+        return 0;
     }
 
-    return 0;
-}
+    unsigned char data[2] = {0};
 
-void VEMLClass::shutdown(void) {
-    /* Set shutdown bits SD1/SD0 */
-    regWrite(POINTER_CONFIG, ((1 << 15) | (1 << 0)));
-}
+    wire->beginTransmission(device_address);
+    wire->write(register_address);
+    wire->endTransmission(false);
+    wire->requestFrom(device_address, 2);
 
-int16_t VEMLClass::getRed(void) { return regRead(POINTER_RED); }
+    for (uint8_t i = 0; i < 2; i++) {
+        // Wait some for the result
+        delay(10);
 
-int16_t VEMLClass::getGreen(void) { return regRead(POINTER_GREEN); }
-
-int16_t VEMLClass::getBlue(void) { return regRead(POINTER_BLUE); }
-
-int16_t VEMLClass::getIR(void) { return regRead(POINTER_IR); }
-
-int16_t VEMLClass::getClear(void) { return regRead(POINTER_CLEAR); }
-
-uint16_t VEMLClass::deviceID(void) {
-    return (regRead(POINTER_DEVICE_ID) & 0xFF); // LSB data
-}
-
-uint8_t VEMLClass::rbShutdown(void) {
-    regWrite(POINTER_CONFIG, (1 << 14));
-
-    /* Check shutdown bit */
-    uint16_t reg = regRead(POINTER_CONFIG);
-    if (!(reg & (1 << 14))) {
-#ifdef DEBUG
-        SerialDebug.println("Error: shutdown bit not set");
-#endif
-        return 1;
-    }
-
-    return 0;
-}
-
-uint8_t VEMLClass::rbWakeup(void) {
-    regWrite(POINTER_CONFIG, (0 << 14));
-
-    /* Check shutdown bit */
-    uint16_t reg = regRead(POINTER_CONFIG);
-    if (reg & (1 << 14)) {
-#ifdef DEBUG
-        SerialDebug.println("Error: shutdown bit set");
-#endif
-        return 1;
-    }
-
-    return 0;
-}
-
-uint8_t VEMLClass::setDG(DG_t val) {
-    regWrite(POINTER_CONFIG, val);
-
-    /* Check user val */
-    uint16_t reg = regRead(POINTER_CONFIG);
-    if (!(reg & val)) {
-#ifdef DEBUG
-        SerialDebug.println("Error: DG not set");
-#endif
-        return 1;
-    }
-
-    return 0;
-}
-
-uint8_t VEMLClass::setGain(gain_t val) {
-    regWrite(POINTER_CONFIG, val);
-
-    /* Check user val */
-    uint16_t reg = regRead(POINTER_CONFIG);
-    if (!(reg & val)) {
-#ifdef DEBUG
-        SerialDebug.println("Error: gain not set");
-#endif
-        return 1;
-    }
-
-    return 0;
-}
-
-uint8_t VEMLClass::setSensitivity(bool high_low_sens) {
-    /* Variables */
-    uint16_t reg;
-
-    if (high_low_sens) {
-        regWrite(POINTER_CONFIG, (1 << 6));
-
-        reg = regRead(POINTER_CONFIG);
-        if (reg & (0 << 6)) {
-#ifdef DEBUG
-            SerialDebug.println("Error: gain not set");
-#endif
-            return 1;
+        // We don't busy wait here to prevent dead lock. We rather want a wrong
+        // result here than the device hanging here if we use a loop to check
+        // the result here
+        if (!wire->available()) {
+            break;
         }
-    } else {
-        regWrite(POINTER_CONFIG, (0 << 6));
 
-        reg = regRead(POINTER_CONFIG);
-        if (reg & (1 << 6)) {
-#ifdef DEBUG
-            SerialDebug.println("Error: gain not set");
-#endif
-            return 1;
-        }
-    }
-    return 0;
-}
-
-uint8_t VEMLClass::setIntTime(int_time_t time) {
-    regWrite(POINTER_CONFIG, time);
-
-    /* Check user val */
-    uint16_t reg = regRead(POINTER_CONFIG);
-    if (!(reg & time)) {
-#ifdef DEBUG
-        SerialDebug.println("Error: gain not set");
-#endif
-        return 1;
+        data[i] = wire->read();
     }
 
-    return 0;
+    return (((uint16_t)data[1]) << 8) | data[0];
 }
 
-/**
- * @brief 16-bit write procedure
- *
- * @param reg_ptr Register pointer
- * @param data 16-bit data
- */
-void regWrite(uint8_t reg_ptr, uint16_t data) {
-    /* Start transaction */
-    WIRE.beginTransmission(I2C_ADDRESS);
+void VEMLClass::write(const uint8_t register_address,
+                      const uint16_t mask,
+                      const uint16_t data,
+                      const uint8_t shift) {
 
-    WIRE.write(reg_ptr);     // Register pointer
-    WIRE.write(data & 0xFF); // LSB data
-    WIRE.write(data >> 8);   // MSB data
-
-    WIRE.endTransmission(true);
-}
-
-/**
- * @brief 16-bit read procedure
- *
- * @param reg_ptr Register pointer
- * @return uint16_t Returned data
- */
-uint16_t regRead(uint8_t reg_ptr) {
-    /* Variables */
-    unsigned char rx_data[2] = {0};
-
-    /* Start transaction, send command code */
-    WIRE.beginTransmission(I2C_ADDRESS);
-    WIRE.write(reg_ptr);
-
-    /* Repeated start, request 2 bytes */
-    WIRE.endTransmission(false);
-    WIRE.requestFrom((uint8_t)I2C_ADDRESS, (size_t)2);
-
-    /* Read available data */
-    int i = 0;
-    if (WIRE.available()) {
-        while (i < 2) {
-            rx_data[i] = WIRE.read();
-            i++;
-        }
+    if (wire == nullptr) {
+        return;
     }
 
-    return (rx_data[1] << 8) | rx_data[0];
+    const uint16_t current_data = read(register_address);
+    const uint16_t data_to_write = (current_data & (~mask)) | (data << shift);
+
+    wire->beginTransmission(device_address);
+
+    wire->write(register_address);
+    wire->write(data_to_write & 0xff);
+    wire->write(data_to_write >> 8);
+
+    wire->endTransmission(true);
+}
+
+uint8_t VEMLClass::writeConfirm(const uint8_t register_address,
+                                const uint16_t mask,
+                                const uint16_t data,
+                                const uint8_t shift) {
+
+    write(register_address, mask, data, shift);
+
+    return (((read(register_address) & mask) >> shift) != data) ? 1 : 0;
 }
